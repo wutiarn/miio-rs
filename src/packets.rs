@@ -1,10 +1,12 @@
+use std::io::BufRead;
+use std::string::String;
 
 use anyhow::anyhow;
+use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{BufMut, Bytes, BytesMut};
 use lazy_static::lazy_static;
 use openssl::hash::hash;
 use openssl::hash::MessageDigest;
-
 use serde::Serialize;
 
 use crate::token::MiIoToken;
@@ -26,7 +28,7 @@ lazy_static! {
 pub struct MiIoCommand {
     method: String,
     params: Vec<serde_json::Value>,
-    id: u32
+    id: u32,
 }
 
 impl MiIoCommand {
@@ -34,7 +36,7 @@ impl MiIoCommand {
         MiIoCommand {
             method,
             params,
-            id: 0
+            id: 0,
         }
     }
 }
@@ -43,7 +45,7 @@ fn construct_packet(
     token: MiIoToken,
     device_id: u32,
     timestamp: u32,
-    mut payload: MiIoCommand
+    mut payload: MiIoCommand,
 ) -> Result<Bytes, anyhow::Error> {
     payload.id = timestamp;
     let payload = serde_json::to_string(&payload)?;
@@ -65,12 +67,41 @@ fn construct_packet(
     Ok(packet.freeze())
 }
 
-fn decode_packet(bytes: &[u8], token: MiIoToken) -> Result<String, anyhow::Error> {
-    if u16::from_be_bytes(bytes[0..2].try_into()?) != MAGIC {
-        return Err(anyhow!("Packet magic is invalid"))
+fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPackage, anyhow::Error> {
+    let mut cursor = std::io::Cursor::new(bytes);
+    if cursor.read_u16::<BigEndian>()? != MAGIC {
+        return Err(anyhow!("Packet magic is invalid"));
     };
 
-    todo!()
+    let packet_len: usize = cursor.read_u16::<BigEndian>()? as usize;
+    let data_len = packet_len - 16;
+
+    cursor.consume(32); // Skip unknown 1 field
+
+    let device_id = cursor.read_u32::<BigEndian>()?;
+    let timestamp = cursor.read_u32::<BigEndian>()?;
+    let checksum = cursor.read_u64::<BigEndian>()?;
+    drop(cursor);
+
+    let data: Option<String> = if data_len > 0 && token.is_some() {
+        let encrypted_bytes = &bytes[16..(16 + data_len)];
+        let decrypted_bytes = token.unwrap().decrypt(encrypted_bytes)?;
+        Some(String::from_utf8(decrypted_bytes)?)
+    } else {
+        None
+    };
+
+    Ok(DecodedPackage {
+        device_id,
+        timestamp,
+        data,
+    })
+}
+
+pub struct DecodedPackage {
+    pub device_id: u32,
+    pub timestamp: u32,
+    pub data: Option<String>,
 }
 
 #[cfg(test)]
@@ -104,6 +135,7 @@ mod tests {
         let token = MiIoToken::new("3c92df7588021efbcd6bd55c9147bed0").unwrap();
 
         let packet_bytes = hex::decode(packet_hex).unwrap();
-        decode_packet(&packet_bytes, token).unwrap();
+        let decoded_package = decode_packet(&packet_bytes, Some(token)).unwrap();
+        println!("Package data: {}", decoded_package.data.unwrap())
     }
 }
