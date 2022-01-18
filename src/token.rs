@@ -1,24 +1,24 @@
 use bytes::{Bytes, BytesMut};
 use openssl::error::ErrorStack;
-use openssl::hash::DigestBytes;
+use openssl::hash::{DigestBytes, hash, MessageDigest};
 use openssl::symm::Cipher;
 use std::ops::Deref;
 
 pub struct MiIoToken {
-    token_bytes: Vec<u8>,
+    pub token_bytes: Vec<u8>,
     token_md5: DigestBytes,
     iv: DigestBytes,
 }
 
 impl MiIoToken {
     pub fn new(token_hex: &str) -> Result<MiIoToken, anyhow::Error> {
-        let message_digest = openssl::hash::MessageDigest::md5();
+        let message_digest = MessageDigest::md5();
         let token_bytes = hex::decode(token_hex)?;
-        let token_md5 = openssl::hash::hash(message_digest, token_bytes.deref())?;
+        let token_md5 = hash(message_digest, token_bytes.deref())?;
 
         let iv = {
             let bytes = [token_md5.deref(), token_bytes.deref()].concat();
-            openssl::hash::hash(message_digest, bytes.deref())?
+            hash(message_digest, bytes.deref())?
         };
 
         Ok(MiIoToken { token_bytes, token_md5, iv })
