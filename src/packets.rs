@@ -7,10 +7,11 @@ const MAGIC: u16 = 0x2131;
 
 lazy_static! {
     static ref HELLO_PACKET: Bytes = {
-        let mut packet = BytesMut::with_capacity(32);
-        packet.fill(0xffu8);
+        let capacity = 32;
+        let mut packet = BytesMut::with_capacity(capacity);
         packet.put_u16(MAGIC);
-        packet.put_u16(packet.len() as u16);
+        packet.put_u16(capacity as u16);
+        packet.put_slice(&[0xffu8; 28]);
         packet.freeze()
     };
 }
@@ -30,11 +31,11 @@ mod tests {
     use std::ops::Deref;
     use crate::packets::HELLO_PACKET;
 
+    //noinspection SpellCheckingInspection
     #[test]
     fn hello_packet_is_valid() {
-        let expected = "[21, 31, 00, 20, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF]";
-        let data: &[u8] = HELLO_PACKET.deref();
-        let actual = format!("{:02X?}", data);
+        let expected = "21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        let actual = hex::encode(HELLO_PACKET.deref());
         println!("Actual: {actual}");
         assert_eq!(actual, expected);
     }
