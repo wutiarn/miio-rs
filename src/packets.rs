@@ -6,7 +6,10 @@ const MAGIC: u16 = 0x2131;
 lazy_static! {
     static ref HELLO_PACKET: [u8; 32] = {
         let mut packet = [0u8; 32];
-        packet[5..10].copy_from_slice(&[1u8; 5]);
+        let packet_len = packet.len() as u16;
+        packet[0..2].copy_from_slice(&MAGIC.to_be_bytes());
+        packet[2..4].copy_from_slice(&packet_len.to_be_bytes());
+        packet[4..32].copy_from_slice(&[0xffu8; 28]);
         packet
     };
 }
@@ -18,7 +21,7 @@ mod tests {
 
     #[test]
     fn hello_packet_is_valid() {
-        let expected = "[00, 00, 00, 00, 00, 01, 01, 01, 01, 01, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]";
+        let expected = "[21, 31, 00, 20, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF]";
         let data: &[u8] = HELLO_PACKET.deref();
         let actual = format!("{:02X?}", data);
         println!("Actual: {actual}");
