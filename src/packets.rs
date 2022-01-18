@@ -1,17 +1,28 @@
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use bytes::{BufMut, Bytes, BytesMut};
+use crate::token::MiIoToken;
 
 const MAGIC: u16 = 0x2131;
 
 lazy_static! {
-    static ref HELLO_PACKET: [u8; 32] = {
-        let mut packet = [0u8; 32];
-        let packet_len = packet.len() as u16;
-        packet[0..2].copy_from_slice(&MAGIC.to_be_bytes());
-        packet[2..4].copy_from_slice(&packet_len.to_be_bytes());
-        packet[4..32].copy_from_slice(&[0xffu8; 28]);
-        packet
+    static ref HELLO_PACKET: Bytes = {
+        let mut packet = BytesMut::with_capacity(32);
+        packet.fill(0xffu8);
+        packet.put_u16(MAGIC);
+        packet.put_u16(packet.len() as u16);
+        packet.freeze()
     };
+}
+
+fn construct_packet(
+    deviceId: u8,
+    token: MiIoToken,
+    payload: &str,
+    timestamp: u8
+) {
+    let mut payload = BytesMut::from(payload);
+    token.encrypt(&mut payload);
 }
 
 #[cfg(test)]

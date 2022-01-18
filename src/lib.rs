@@ -1,6 +1,7 @@
 mod operations;
 mod device;
 mod packets;
+mod token;
 
 #[cfg(test)]
 mod tests {
