@@ -86,7 +86,8 @@ fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPackag
     let data: Option<String> = if data_len > 0 && token.is_some() {
         let encrypted_bytes = &bytes[16..(16 + data_len)];
         let decrypted_bytes = token.unwrap().decrypt(encrypted_bytes)?;
-        Some(String::from_utf8(decrypted_bytes)?)
+        Some(String::from_utf8_lossy(&decrypted_bytes).to_string())
+        // Some(String::from_utf8(decrypted_bytes)?)
     } else {
         None
     };
