@@ -21,9 +21,9 @@ fn construct_packet(
     token: MiIoToken,
     payload: &str,
     timestamp: u8
-) {
-    let mut payload = BytesMut::from(payload);
-    token.encrypt(&mut payload);
+) -> Result<Bytes, anyhow::Error> {
+    let encrypted = token.encrypt(&payload.as_bytes())?;
+    todo!()
 }
 
 #[cfg(test)]
