@@ -1,12 +1,10 @@
-use std::any::Any;
-use std::collections::HashMap;
 
 use anyhow::anyhow;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use lazy_static::lazy_static;
 use openssl::hash::hash;
 use openssl::hash::MessageDigest;
-use openssl::ssl::HandshakeError::Failure;
+
 use serde::Serialize;
 
 use crate::token::MiIoToken;
