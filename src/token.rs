@@ -4,14 +4,21 @@ use std::ops::Deref;
 
 pub struct MiIoToken {
     token_hash: DigestBytes,
+    iv: DigestBytes
 }
 
 impl MiIoToken {
     pub fn new(token: &str) -> Result<MiIoToken, anyhow::Error> {
         let message_digest = openssl::hash::MessageDigest::md5();
-        let token_hash = openssl::hash::hash(message_digest, token.as_bytes())?;
+        let token_bytes = token.as_bytes();
+        let token_hash = openssl::hash::hash(message_digest, token_bytes)?;
 
-        Ok(MiIoToken { token_hash })
+        let iv = {
+            let bytes = [token_hash.deref(), token_bytes.deref()].concat();
+            openssl::hash::hash(message_digest, bytes.deref())?
+        };
+
+        Ok(MiIoToken { token_hash, iv })
     }
 
     pub fn encrypt(&self, msg: &mut BytesMut) {}
@@ -27,10 +34,15 @@ mod tests {
     #[test]
     fn test_token_construction() {
         let token = MiIoToken::new("test").unwrap();
-        let actual_hash = hex::encode(token.token_hash);
-        println!("Actual hash: {actual_hash}");
 
-        let expected_hash = "098f6bcd4621d373cade4e832627b4f6";
-        assert_eq!(expected_hash, actual_hash)
+        let actual_token_hash = hex::encode(token.token_hash);
+        let expected_token_hash = "098f6bcd4621d373cade4e832627b4f6";
+        println!("Actual token hash: {actual_token_hash}");
+        assert_eq!(expected_token_hash, actual_token_hash);
+
+        let actual_iv = hex::encode(token.iv);
+        let expected_iv = "0a9172716ae6428409885b8b829ccb05";
+        println!("Actual iv: {actual_iv}");
+        assert_eq!(expected_iv, actual_iv);
     }
 }
