@@ -25,12 +25,12 @@ lazy_static! {
 #[derive(Serialize)]
 pub struct MiIoCommand {
     method: String,
-    params: Vec<Box<dyn Serialize>>,
+    params: Vec<serde_json::Value>,
     id: u32
 }
 
 impl MiIoCommand {
-    fn new(method: String, params: Vec<Box<dyn Any>>) -> MiIoCommand {
+    fn new(method: String, params: Vec<serde_json::Value>) -> MiIoCommand {
         MiIoCommand {
             method,
             params,
