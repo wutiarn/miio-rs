@@ -18,7 +18,10 @@ mod tests {
 
     #[test]
     fn hello_packet_is_valid() {
+        let expected = "[00, 00, 00, 00, 00, 01, 01, 01, 01, 01, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]";
         let data: &[u8] = HELLO_PACKET.deref();
-        println!("{:02X?}", data)
+        let actual = format!("{:02X?}", data);
+        println!("Actual: {actual}");
+        assert_eq!(actual, expected);
     }
 }
