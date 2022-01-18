@@ -1,3 +1,7 @@
+mod operations;
+mod device;
+mod packets;
+
 #[cfg(test)]
 mod tests {
     #[test]
