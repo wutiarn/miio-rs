@@ -1,10 +1,12 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use bytes::{BufMut, Bytes, BytesMut};
+use anyhow::anyhow;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use lazy_static::lazy_static;
 use openssl::hash::hash;
 use openssl::hash::MessageDigest;
+use openssl::ssl::HandshakeError::Failure;
 use serde::Serialize;
 
 use crate::token::MiIoToken;
@@ -65,11 +67,19 @@ fn construct_packet(
     Ok(packet.freeze())
 }
 
+fn decode_packet(bytes: &[u8], token: MiIoToken) -> Result<String, anyhow::Error> {
+    if u16::from_be_bytes(bytes[0..2].try_into()?) != MAGIC {
+        return Err(anyhow!("Packet magic is invalid"))
+    };
+
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use std::ops::Deref;
 
-    use crate::packets::{construct_packet, HELLO_PACKET, MiIoCommand};
+    use crate::packets::{construct_packet, decode_packet, HELLO_PACKET, MiIoCommand};
     use crate::token::MiIoToken;
 
     //noinspection SpellCheckingInspection
@@ -82,11 +92,20 @@ mod tests {
     }
 
     #[test]
-    fn construct_packet_works() {
+    fn packet_construction_works() {
         let token = MiIoToken::new("3c92df7588021efbcd6bd55c9147bed0").unwrap();
         let command = MiIoCommand::new("miIO.info".to_string(), vec![]);
         let packet_bytes = construct_packet(token, 133525349, 70633, command).unwrap();
         let expected_packet_hex = "213100500000000007f56f65000113e95424d99f4f6f0e89fb5c5d54e79e2c413083a0b3cebdbe3b2813dd94f20e5247acf3e9f86e51ed9f95caa50ffa1f899d3026f0fcfae93a52dbdc4fc088a54205";
         assert_eq!(expected_packet_hex, hex::encode(&packet_bytes))
+    }
+
+    #[test]
+    fn packet_parse_works() {
+        let packet_hex = "213100500000000007f56f65000113e95424d99f4f6f0e89fb5c5d54e79e2c413083a0b3cebdbe3b2813dd94f20e5247acf3e9f86e51ed9f95caa50ffa1f899d3026f0fcfae93a52dbdc4fc088a54205";
+        let token = MiIoToken::new("3c92df7588021efbcd6bd55c9147bed0").unwrap();
+
+        let packet_bytes = hex::decode(packet_hex).unwrap();
+        decode_packet(&packet_bytes, token).unwrap();
     }
 }
