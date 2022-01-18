@@ -12,10 +12,11 @@ use serde::Serialize;
 use crate::token::MiIoToken;
 
 const MAGIC: u16 = 0x2131;
+const HEADER_SIZE: usize = 32; // bytes
 
 lazy_static! {
     static ref HELLO_PACKET: Bytes = {
-        let capacity = 32;
+        let capacity = HEADER_SIZE;
         let mut packet = BytesMut::with_capacity(capacity);
         packet.put_u16(MAGIC);
         packet.put_u16(capacity as u16);
@@ -50,7 +51,7 @@ fn construct_packet(
     payload.id = timestamp;
     let payload = serde_json::to_string(&payload)?;
     let encrypted_payload = token.encrypt(&payload.as_bytes())?;
-    let packet_len = encrypted_payload.len() + 32;
+    let packet_len = encrypted_payload.len() + HEADER_SIZE;
     let mut packet = BytesMut::with_capacity(packet_len);
 
     packet.put_u16(MAGIC);
@@ -72,19 +73,15 @@ fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPackag
     if cursor.read_u16::<BigEndian>()? != MAGIC {
         return Err(anyhow!("Packet magic is invalid"));
     };
-
     let packet_len: usize = cursor.read_u16::<BigEndian>()? as usize;
-    let data_len = packet_len - 16;
-
-    cursor.consume(32); // Skip unknown 1 field
-
+    cursor.read_u32::<BigEndian>()?; // Skip unknown 1 field
     let device_id = cursor.read_u32::<BigEndian>()?;
     let timestamp = cursor.read_u32::<BigEndian>()?;
-    let checksum = cursor.read_u64::<BigEndian>()?;
+    let checksum = cursor.read_u64::<BigEndian>()?; // TODO: Verify checksum
     drop(cursor);
 
-    let data: Option<String> = if data_len > 0 && token.is_some() {
-        let encrypted_bytes = &bytes[16..(16 + data_len)];
+    let data: Option<String> = if packet_len > HEADER_SIZE && token.is_some() {
+        let encrypted_bytes = &bytes[HEADER_SIZE..packet_len];
         let decrypted_bytes = token.unwrap().decrypt(encrypted_bytes)?;
         Some(String::from_utf8_lossy(&decrypted_bytes).to_string())
         // Some(String::from_utf8(decrypted_bytes)?)
@@ -137,6 +134,11 @@ mod tests {
 
         let packet_bytes = hex::decode(packet_hex).unwrap();
         let decoded_package = decode_packet(&packet_bytes, Some(token)).unwrap();
-        println!("Package data: {}", decoded_package.data.unwrap())
+        let package_data = decoded_package.data.unwrap();
+        println!("Package data: {}", package_data);
+
+        assert_eq!(r#"{"method":"miIO.info","params":[],"id":70633}"#, package_data);
+        assert_eq!(133525349, decoded_package.device_id);
+        assert_eq!(70633, decoded_package.timestamp);
     }
 }

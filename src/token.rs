@@ -75,4 +75,14 @@ mod tests {
         let decrypted = token.decrypt(encrypted.deref()).unwrap();
         assert_eq!(payload.as_bytes(), decrypted.deref())
     }
+
+    #[test]
+    fn test_token_encryption_json() {
+        let payload = r#"{"method":"miIO.info","params":[],"id":70633}"#;
+        let token = MiIoToken::new("586e584268475142564d485234734d4b").unwrap();
+
+        let encrypted = token.encrypt(&payload.as_bytes()).unwrap();
+        let decrypted = token.decrypt(encrypted.deref()).unwrap();
+        assert_eq!(payload.as_bytes(), decrypted.deref())
+    }
 }
