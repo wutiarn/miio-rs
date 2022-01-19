@@ -153,4 +153,27 @@ mod tests {
         assert_eq!(133525349, decoded_packet.device_id);
         assert_eq!(70633, decoded_packet.timestamp);
     }
+
+    //noinspection SpellCheckingInspection
+    #[test]
+    fn decode_hello_packet_works() {
+        let hello_packet = "213100200000000007f699e300000085ffffffffffffffffffffffffffffffff";
+        let hello_packet_bytes = hex::decode(hello_packet).unwrap();
+        let decoded_packet = decode_packet(&hello_packet_bytes, None).unwrap();
+        assert_eq!(true, decoded_packet.data.is_none());
+
+        assert_eq!(133601763, decoded_packet.device_id);
+        assert_eq!(133, decoded_packet.timestamp);
+    }
+
+    #[test]
+    fn packet_checksum_verification_works() {
+        let packet_hex = "213100500000000007f56f65000113e95424d99f4f6f0e89fb5c5d54e79e2c413083a0b3000000000013dd94f20e5247acf3e9f86e51ed9f95caa50ffa1f899d3026f0fcfae93a52dbdc4fc088a54205";
+        let token = MiIoToken::new("3c92df7588021efbcd6bd55c9147bed0").unwrap();
+
+        let packet_bytes = hex::decode(packet_hex).unwrap();
+        let decode_result = decode_packet(&packet_bytes, Some(token));
+
+        assert_eq!(true, decode_result.is_err())
+    }
 }
