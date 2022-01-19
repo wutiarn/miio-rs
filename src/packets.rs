@@ -1,4 +1,4 @@
-use std::io::BufRead;
+use std::ops::Deref;
 use std::string::String;
 
 use anyhow::anyhow;
@@ -15,7 +15,7 @@ const MAGIC: u16 = 0x2131;
 const HEADER_SIZE: usize = 32; // bytes
 
 lazy_static! {
-    static ref HELLO_PACKET: Bytes = {
+    pub static ref HELLO_PACKET: Bytes = {
         let capacity = HEADER_SIZE;
         let mut packet = BytesMut::with_capacity(capacity);
         packet.put_u16(MAGIC);
@@ -33,7 +33,7 @@ pub struct MiIoCommand {
 }
 
 impl MiIoCommand {
-    fn new(method: String, params: Vec<serde_json::Value>) -> MiIoCommand {
+    pub fn new(method: String, params: Vec<serde_json::Value>) -> MiIoCommand {
         MiIoCommand {
             method,
             params,
@@ -42,7 +42,13 @@ impl MiIoCommand {
     }
 }
 
-fn construct_packet(
+pub struct DecodedPacket {
+    pub device_id: u32,
+    pub timestamp: u32,
+    pub data: Option<String>,
+}
+
+pub fn construct_packet(
     token: MiIoToken,
     device_id: u32,
     timestamp: u32,
@@ -68,7 +74,7 @@ fn construct_packet(
     Ok(packet.freeze())
 }
 
-fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPackage, anyhow::Error> {
+pub fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPacket, anyhow::Error> {
     let mut cursor = std::io::Cursor::new(bytes);
     if cursor.read_u16::<BigEndian>()? != MAGIC {
         return Err(anyhow!("Packet magic is invalid"));
@@ -77,29 +83,35 @@ fn decode_packet(bytes: &[u8], token: Option<MiIoToken>) -> Result<DecodedPackag
     cursor.read_u32::<BigEndian>()?; // Skip unknown 1 field
     let device_id = cursor.read_u32::<BigEndian>()?;
     let timestamp = cursor.read_u32::<BigEndian>()?;
-    let checksum = cursor.read_u64::<BigEndian>()?; // TODO: Verify checksum
     drop(cursor);
 
     let data: Option<String> = if packet_len > HEADER_SIZE && token.is_some() {
+        let token = token.unwrap();
+        validate_packet_checksum(bytes, &token.token_bytes)?;
         let encrypted_bytes = &bytes[HEADER_SIZE..packet_len];
-        let decrypted_bytes = token.unwrap().decrypt(encrypted_bytes)?;
-        Some(String::from_utf8_lossy(&decrypted_bytes).to_string())
-        // Some(String::from_utf8(decrypted_bytes)?)
+        let decrypted_bytes = token.decrypt(encrypted_bytes)?;
+        // Some(String::from_utf8_lossy(&decrypted_bytes).to_string())
+        Some(String::from_utf8(decrypted_bytes)?)
     } else {
         None
     };
 
-    Ok(DecodedPackage {
+    Ok(DecodedPacket {
         device_id,
         timestamp,
         data,
     })
 }
 
-pub struct DecodedPackage {
-    pub device_id: u32,
-    pub timestamp: u32,
-    pub data: Option<String>,
+fn validate_packet_checksum(packet: &[u8], token_bytes: &[u8]) -> Result<(), anyhow::Error> {
+    let checksum = &packet[16..32];
+    let mut packet = packet.to_owned();
+    packet[16..32].copy_from_slice(token_bytes);
+    let packet_md5_hash = hash(MessageDigest::md5(), &packet)?;
+    if packet_md5_hash.deref() != checksum {
+        return Err(anyhow!("MiIo packet checksum validation failed"))
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -128,17 +140,17 @@ mod tests {
     }
 
     #[test]
-    fn packet_parse_works() {
+    fn packet_decode_works() {
         let packet_hex = "213100500000000007f56f65000113e95424d99f4f6f0e89fb5c5d54e79e2c413083a0b3cebdbe3b2813dd94f20e5247acf3e9f86e51ed9f95caa50ffa1f899d3026f0fcfae93a52dbdc4fc088a54205";
         let token = MiIoToken::new("3c92df7588021efbcd6bd55c9147bed0").unwrap();
 
         let packet_bytes = hex::decode(packet_hex).unwrap();
-        let decoded_package = decode_packet(&packet_bytes, Some(token)).unwrap();
-        let package_data = decoded_package.data.unwrap();
-        println!("Package data: {}", package_data);
+        let decoded_packet = decode_packet(&packet_bytes, Some(token)).unwrap();
+        let packet_data = decoded_packet.data.unwrap();
+        println!("Packet data: {}", packet_data);
 
-        assert_eq!(r#"{"method":"miIO.info","params":[],"id":70633}"#, package_data);
-        assert_eq!(133525349, decoded_package.device_id);
-        assert_eq!(70633, decoded_package.timestamp);
+        assert_eq!(r#"{"method":"miIO.info","params":[],"id":70633}"#, packet_data);
+        assert_eq!(133525349, decoded_packet.device_id);
+        assert_eq!(70633, decoded_packet.timestamp);
     }
 }
