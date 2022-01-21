@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package miio;
+
+service MiioCommands {
+  rpc SendCommand (SendCommandRequest) returns (DeviceResponse);
+}
+
+message Device {
+  string inetAddress = 1;
+  string token = 2;
+}
+
+message Command {
+  string method = 1;
+  string params = 2;
+}
+
+message SendCommandRequest {
+  Device device = 1;
+  Command command = 2;
+}
+
+message DeviceResponse {
+  string data = 1;
+}
