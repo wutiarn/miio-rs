@@ -1,7 +1,7 @@
-mod operations;
-mod device;
-mod packets;
-mod token;
+pub mod operations;
+pub mod device;
+pub mod packets;
+pub mod token;
 
 #[cfg(test)]
 mod tests {
