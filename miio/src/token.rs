@@ -4,6 +4,7 @@ use openssl::hash::{DigestBytes, hash, MessageDigest};
 use openssl::symm::Cipher;
 use std::ops::Deref;
 
+#[derive(Debug)]
 pub struct MiIoToken {
     pub token_bytes: Vec<u8>,
     token_md5: DigestBytes,

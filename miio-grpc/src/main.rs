@@ -1,4 +1,5 @@
 mod error;
+mod handlers;
 
 use env_logger::Target;
 use log::{info, LevelFilter};
@@ -22,18 +23,7 @@ pub struct MiioCommandsImpl {}
 #[tonic::async_trait]
 impl miio_grpc::miio_commands_server::MiioCommands for MiioCommandsImpl {
     async fn send_command(&self, request: Request<SendCommandRequest>) -> Result<Response<DeviceResponse>, Status> {
-        let request = request.into_inner();
-        info!("{:?}", request.command);
-        let device = MiIoDevice {
-            token: MiIoToken::new(request.device?.token.as_str())?,
-            ip_address: request.device?.inet_address.parse()?
-        };
-        let command = MiIoCommand::new(
-            request.command?.method,
-            vec![]
-        );
-        let result = miio::operations::send_request(&device, command);
-        Ok(Response::new(DeviceResponse::default()))
+        Ok(Response::new(handlers::send_command(request.into_inner())?))
     }
 }
 

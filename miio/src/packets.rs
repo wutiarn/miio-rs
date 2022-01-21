@@ -25,7 +25,7 @@ lazy_static! {
     };
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct MiIoCommand {
     method: String,
     params: Vec<serde_json::Value>,
