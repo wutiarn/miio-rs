@@ -1,4 +1,5 @@
-use log::info;
+use env_logger::Target;
+use log::{info, LevelFilter};
 use tonic::{Request, Response, Status};
 use tonic::transport::Server;
 use crate::miio_grpc::{DeviceResponse, SendCommandRequest};
@@ -22,6 +23,11 @@ impl miio_grpc::miio_commands_server::MiioCommands for MiioCommandsImpl {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::builder()
+        .filter_level(LevelFilter::Info)
+        .target(Target::Stdout)
+        .init();
+
     let addr = "0.0.0.0:50051".parse().unwrap();
     println!("MiioCommandsServer listening on {}", addr);
     Server::builder()
