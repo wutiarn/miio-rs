@@ -1,3 +1,5 @@
+mod error;
+
 use env_logger::Target;
 use log::{info, LevelFilter};
 use tonic::{Request, Response, Status};
