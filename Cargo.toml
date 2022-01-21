@@ -1,4 +1,5 @@
 [workspace]
 members = [
-    "miio"
+    "miio",
+    "miio-grpc"
 ]
