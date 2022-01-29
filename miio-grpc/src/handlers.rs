@@ -9,12 +9,12 @@ use crate::error::AppError;
 
 pub fn send_command(request: SendCommandRequest) -> Result<DeviceResponse, AppError> {
     info!("{:?}", request.command);
-    let device_dto = request.device.ok_or(anyhow!("Device must be present"))?;
+    let device_dto = request.device.ok_or(AppError::MissingRequiredField("device"))?;
     let device = MiIoDevice {
         token: MiIoToken::new(device_dto.token.as_str())?,
         ip_address: device_dto.inet_address.parse()?
     };
-    let command = request.command.ok_or(anyhow!("Command must be present"))?;
+    let command = request.command.ok_or(AppError::MissingRequiredField("command"))?;
     let command = MiIoCommand::new(
         command.method,
         vec![]
